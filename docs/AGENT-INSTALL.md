@@ -12,13 +12,15 @@
 
 | 项 | 要求 | 检查命令 |
 | --- | --- | --- |
-| DSH | `>= 0.2.0-rc.2`（需要 bundle patch 与 plugin 管理能力） | 询问用户 / 看 `$DSH_PROFILE_DIR` |
+| DSH | **`0.2.0-rc.2` 验证通过；要求 `>= 0.2.0-rc.2`**（更早/更新版本未验证，见 README「DSH 版本兼容性声明」） | `dsh --version` |
 | Node.js | `>= 20` | `node -v` |
 | 仓库 | 已 clone 到 `${REPO_DIR}`，工作区干净 | `git -C "${REPO_DIR}" status --short` |
 | 凭据 | 只需**环境变量名**；不需要把 key 交给 agent | `echo "${PROBE_API_KEY_ENV:-DEEPSEEK_API_KEY}"` |
 
 > 变更范围：安装/启用 DSH profile 里的 bundle；不修改 DSH 宿主源码。
 > 浏览器半边需要用户 **F5 刷新页面**，agent 无法代替。
+> **版本处理**：`dsh --version` 不是 `0.2.0-rc.2`（或无法判断）时，先**如实报告版本并停下**，
+> 不要直接按本指南假设行为一致；由用户决定是否继续（升级后兼容性未验证）。
 
 ## 1. 初始化符号映射（agent 第一步）
 

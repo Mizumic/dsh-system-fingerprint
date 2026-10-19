@@ -18,6 +18,7 @@
 - **CI 维护**：GitHub Actions 升级到 `actions/checkout@v7` / `actions/setup-node@v7`
   （消除 Node 20 runner 弃用告警）；dependabot 对 `react` / `react-dom` 忽略 major 版本
   （渲染回归仍基于 React 18，适配后再放开）；README 增加 CI 状态徽章。
+- **DSH 版本声明**：README 增加「DSH 版本兼容性」小节（验证版本 `0.2.0-rc.2`、最低要求 `>= 0.2.0-rc.2`、`0.2.1-rc.2` 及以后未验证、依赖的宿主集成点与升级策略）；`docs/AGENT-INSTALL.md` 的前置条件增加 `dsh --version` 检查与「版本不符先报告再继续」。
 - **文档澄清**：`docs/SYMBOLS.md` 最后一列明确标注「示例（占位，非本机值）」，`docs/symbols.example.env` 头部也强调全部是占位符——避免把示例路径误读为「本机映射被入库」。真实映射只在 gitignored 的 `.local/symbols.env`。
 - **DSH agent 安装文档 + 本机符号映射**：新增 `docs/AGENT-INSTALL.md`（agent 安装/升级/验证/
   回滚与安全边界）与 `docs/SYMBOLS.md`（`${DSH_HOME}`、`${PLUGIN_DIR}` 等本机字段的符号映射表，

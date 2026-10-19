@@ -73,10 +73,21 @@
 
 | 项 | 要求 | 说明 |
 | --- | --- | --- |
-| DSH | `0.2.0-rc.2` 或更高 | 需要 bundle patch（`cordis.patch.yml`）与插件管理能力 |
+| DSH | `0.2.0-rc.2` 或更高 | 需要 bundle patch（`cordis.patch.yml`）与插件管理能力；版本矩阵见下 |
 | Node.js | `>= 20` | 插件宿主半边只用 Node 内建模块，无运行时依赖 |
 | 模型端点 | 一个 OpenAI 兼容端点（可选） | 有 `system_fingerprint` 最好；没有则走网关溯源或显示「不适用」 |
 | 凭据 | 环境变量或 DSH credentials ref（可选） | 例如 `DEEPSEEK_API_KEY`；**从不写进配置文件或仓库** |
+
+### DSH 版本兼容性声明
+
+| 项 | 声明 |
+| --- | --- |
+| 开发与验证版本 | **DSH `0.2.0-rc.2`**（2026-10-20 在运行中的 Web 实例上完成端到端验证） |
+| 最低要求 | **`>= 0.2.0-rc.2`**；更早版本未验证（缺少本插件依赖的 bundle/patch 与 client 模块机制） |
+| 未验证版本 | `0.2.1-rc.2` 及以后：DSH 曾在独立树做过升级验证，但**本插件尚未在这些版本上跑过**；升级后须按 [`docs/AGENT-INSTALL.md`](docs/AGENT-INSTALL.md) 重新安装并逐条验证 |
+| 依赖的宿主集成点 | bundle patch 的安装/重启用、profile storage、`connection.fetch`、client module 表与 slot 注册；**不修改 DSH 宿主源码** |
+| 检测方式 | `dsh --version`（或查看 `$DSH_HOME` 所属安装树）；维护者应把验证过的版本写进变更记录 |
+| 升级策略 | DSH 大版本/预发布升级后：先 `npm test`，再按 AGENT-INSTALL 重装 bundle、确认运行模块 `?v=N` 与 `config.json` 导出正常；**不承诺跨大版本直接兼容** |
 
 插件是**被动层**：单独安装即可工作。可选的主动监测工具（driftmon）只读本插件产物，
 不装也不影响插件功能（见「相关仓库」）。
