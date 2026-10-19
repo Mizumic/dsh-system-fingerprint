@@ -86,6 +86,11 @@
 插件是一个 DSH bundle（`package.json` 的 `dsh.bundle.patch` 指向 `cordis.patch.yml`），
 同时带浏览器半边（`dsh.client` → `lib/client.js`）。
 
+> **让 DSH agent 安装**：agent 请按 [`docs/AGENT-INSTALL.md`](docs/AGENT-INSTALL.md) 执行
+> （符号初始化 → 离线验证 → 安装/热加载 → 逐条验证 → 回滚，含安全边界）。
+> 机器相关字段（`${DSH_HOME}`、`${PLUGIN_DIR}` 等）统一由
+> [`docs/SYMBOLS.md`](docs/SYMBOLS.md) 的符号映射表定义，本机取值放 `.local/symbols.env`（gitignored）。
+
 ```bash
 # 1) 取得仓库（git clone 或下载 release 包）
 git clone https://github.com/Mizumic/dsh-system-fingerprint.git

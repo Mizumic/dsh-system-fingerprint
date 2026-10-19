@@ -18,6 +18,10 @@
 - **CI 维护**：GitHub Actions 升级到 `actions/checkout@v7` / `actions/setup-node@v7`
   （消除 Node 20 runner 弃用告警）；dependabot 对 `react` / `react-dom` 忽略 major 版本
   （渲染回归仍基于 React 18，适配后再放开）；README 增加 CI 状态徽章。
+- **DSH agent 安装文档 + 本机符号映射**：新增 `docs/AGENT-INSTALL.md`（agent 安装/升级/验证/
+  回滚与安全边界）与 `docs/SYMBOLS.md`（`${DSH_HOME}`、`${PLUGIN_DIR}` 等本机字段的符号映射表，
+  实际取值放 gitignored 的 `.local/symbols.env`）；仓库文档不再出现本机绝对路径。
+  主仓迁移为 GitHub。
 
 ## [0.3.0] - 2026-10-20
 
