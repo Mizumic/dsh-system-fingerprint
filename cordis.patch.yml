@@ -1,0 +1,76 @@
+# dsh-system-fingerprint bundle patch。
+#
+# 一行同时是：
+#   * 宿主插件（lib/index.js）：主动探测 + 原始响应拦截（元数据默认留、原始字节默认不留）+ /api/system-fingerprint/state
+#   * 浏览器插件入口（package.json 的 dsh.client -> lib/client.js）：会话头部检查点徽标
+#
+# 本行用包名安装（plugin_manager install_bundle / profile 里 link 本包即可）。
+#
+# 分发说明（本仓库是「可分发型」，不要在这里写本机绝对路径）：
+#   * 宿主半边是单文件、无相对 import，按包名加载即可；重新启用 bundle 会拿到新模块实例。
+#   * 开发期若要在不重启 DSH 的情况下改宿主代码生效，可把 name 临时改成
+#       name: 'file:///绝对路径/lib/index.js?v=N'
+#     并在每次改完代码后把 N 递增、重新启用 bundle（仅开发用，发行版不要这样写）。
+#   * 浏览器半边改完刷新页面即可（clientModules 会按文件元数据换 rev）。
+#
+# 隐私默认（2026-10 起）：
+#   * `capture`（默认 true）：拦截模型响应、保留响应头/元数据（徽标网关溯源 + 端点登记表要用）。
+#   * `captureRaw`（默认 **false**）：把解码前原始字节落到 $DSH_HOME/storages/system-fingerprint/raw/。
+#     原始响应体包含模型正文，分发版默认不落盘；需要存证的部署显式写 captureRaw: true。
+#
+# 两种模式：
+#   * 检查点模式：provider 命中下面配置的 probe 路由 → 主动探测 system_fingerprint，映射成检查点名。
+#   * 网关溯源模式：会话走网关路由（如 opencode-go），上游**不返回** system_fingerprint →
+#     拦截真实响应头，显示配置的网关溯源头（默认 x-opencode-endpoint-id / upstream-model-id /
+#     log-id 等请求级溯源），并明确标注「这不是模型指纹」。
+#
+# 所有配置项都可用本文件覆盖；留空则用插件内默认值（见 README「配置」一节）。
+- insert:
+    - id: system-fingerprint
+      name: 'dsh-system-fingerprint'
+      config:
+        # 探测哪个 provider 路由（只有该路由会做 system_fingerprint 探测）
+        provider: deepseek-official
+        # 探测时使用的模型 id；会话投影/拦截记录缺失时作为最后兜底
+        model: deepseek-flash
+        # 仅当「本会话真实请求的同源根」不可用时才回退到这个端点
+        openaiBaseURL: https://api.deepseek.com
+        # 凭据 ref（走 credentials 服务解析，绝不写明文 key）
+        apiKeyEnv: DEEPSEEK_API_KEY
+        timeoutMs: 15000
+        # 页面每 10 分钟轮询一次；缓存 60s 只用于合并刷新/并发
+        cacheTtlMs: 60000
+        # 1 = 单次探测；2~3 = 同请求多次校验 stable
+        stabilityChecks: 1
+        # 响应拦截总开关（默认 true）：拦截响应头/元数据；关掉后徽标只剩主动探测。
+        capture: true
+        # 原始响应字节落盘（分发版默认 **false** = 隐私优先、默认 0 个 raw 文件）。
+        # 原始体包含模型回复正文；需要离线存证/排查响应格式时改成 true。
+        # 落盘量按 maxRawFiles × maxRawBytes 滚动淘汰（默认 120 × 512 KiB ≈ 60 MiB 上限）；
+        # 元数据存证（meta.json）不受这个开关影响，默认照常保存。
+        captureRaw: false
+        # 不写 captureHosts 时自动用 openaiBaseURL / DEEPSEEK_BASE_URL 的 host；gatewayHosts 无条件并入
+        # （网关路由不带 x-deepseek-harness-* 头，显式列 captureHosts 时漏了它也照样能存证）：
+        # captureHosts:
+        #   - api.deepseek.com
+        # 网关溯源拦截哪些 host（默认 opencode.ai，即 OpenCode Go / Zen）
+        gatewayHosts:
+          - opencode.ai
+        # 网关溯源响应头映射（供应商无关；默认 OpenCode 那组，可整体/按角色替换）。
+        # 角色：endpointId（后端池，徽标主显示）/ upstreamModelId / logId / zenModel / placement / rayId；
+        # 角色之外的键名会作为附加溯实行展示；写 false 表示关闭网关溯源。
+        # 例：换成别的网关
+        # gatewayHeaders:
+        #   endpointId: x-upstream-provider
+        #   logId: x-request-id
+        #   extra_note: x-some-header
+        # 网关路由自己的会话头（默认 x-opencode-session；false = 不做网关侧会话关联）
+        # gatewaySessionHeader: x-opencode-session
+        # 仅 captureRaw: true 时生效：单份原始响应最多保存字节数 / raw 目录保留文件上限
+        maxRawBytes: 524288
+        maxRawFiles: 120
+        # 可选：外部行为告警文件（display-only；由外部监测器写，插件只读展示、缺失静默降级）：
+        # externalAlertFile: /path/to/driftmon/results/watch/gray-watch.json
+        # 可替换的检查点映射表（默认 4 行 DeepSeek 检查点；只给 plaintext 时插件自行算 md5）：
+        # checkpointTable:
+        #   - { name: my-checkpoint, plaintext: fp_xxx }

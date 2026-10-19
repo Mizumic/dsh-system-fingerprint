@@ -1,0 +1,64 @@
+{
+  "name": "dsh-system-fingerprint",
+  "version": "0.3.0",
+  "description": "会话头部的模型检查点徽标：主动探测 system_fingerprint 映射成检查点名（未收录显示原始 md5）；上游不返回指纹时展示可配置的网关请求级溯源；拦截响应元数据用于存证与端点登记（原始字节默认不落盘）",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "docs",
+    "cordis.patch.yml",
+    "README.md",
+    "ROADMAP.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mizumic/dsh-system-fingerprint.git"
+  },
+  "homepage": "https://github.com/Mizumic/dsh-system-fingerprint#readme",
+  "bugs": {
+    "url": "https://github.com/Mizumic/dsh-system-fingerprint/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "system-fingerprint",
+    "checkpoint",
+    "model-drift",
+    "plugin",
+    "bundle"
+  ],
+  "scripts": {
+    "test": "node test/fp-distribution-test.mjs && node test/fp-interface-test.mjs && node test/fp-host-test.mjs && node test/fp-gateway-test.mjs && node test/fp-client-test.mjs && node test/fp-gateway-client-test.mjs && node test/fp-client-render-test.mjs",
+    "test:offline": "node test/fp-distribution-test.mjs && node test/fp-interface-test.mjs && node test/fp-host-test.mjs && node test/fp-gateway-test.mjs && node test/fp-client-test.mjs && node test/fp-gateway-client-test.mjs",
+    "test:render": "node test/fp-client-render-test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

@@ -1,0 +1,12 @@
+# 依赖更新：GitHub Actions 每月检查一次；本仓库是零运行时依赖，devDependencies 也按月。
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
