@@ -15,6 +15,9 @@
   `CODEOWNERS`、dependabot 配置；`cordis.patch.yml` 把 `captureRaw: false` 写成显式一行；
   `package.json` 增加 `repository` / `homepage` / `bugs` / `engines` / `keywords`，
   并随包分发 `LICENSE`、`CHANGELOG.md`。运行时行为无变化。
+- **CI 维护**：GitHub Actions 升级到 `actions/checkout@v7` / `actions/setup-node@v7`
+  （消除 Node 20 runner 弃用告警）；dependabot 对 `react` / `react-dom` 忽略 major 版本
+  （渲染回归仍基于 React 18，适配后再放开）；README 增加 CI 状态徽章。
 
 ## [0.3.0] - 2026-10-20
 

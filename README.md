@@ -6,6 +6,7 @@
 > 端点登记。**原始响应字节默认不落盘**（隐私优先）。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/Mizumic/dsh-system-fingerprint/actions/workflows/ci.yml/badge.svg)](https://github.com/Mizumic/dsh-system-fingerprint/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](package.json)
 [![Tests](https://img.shields.io/badge/tests-218%20passing-brightgreen.svg)](#验证状态)
 
