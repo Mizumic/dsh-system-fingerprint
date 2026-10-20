@@ -82,9 +82,10 @@ GET /api/system-fingerprint/state?sessionId=<id>&provider=<id>&model=<id>&refres
 | `supported` | `false` | **指纹维度不可用**（不是失败） |
 | `reason` | `'gateway-provenance'` | |
 | `displayKind` | `'gateway'` | |
-| `display` | string | 配置里第一个有值的溯源字段（默认 = `endpointId` 后端池） |
+| `display` | string | 主显示：`endpointId`（后端池）→ 自定义角色字段 → `zenModel` → `网关·<placement>`；**不会**是 `logId` 这类逐请求字段 |
 | `fingerprint` | object | `{available:false, systemFingerprint:null, checkpoint:null, reason:'upstream-no-system-fingerprint'}` |
 | `gateway.fields` | `[{key, value}]` | 按 `gatewayHeaders` 配置顺序的溯源字段（UI 直接渲染） |
+| `gateway.endpointDisclosed` | boolean | 端点标识是否由上游披露；`false` 时 UI 需说明「只能按模型别名/边缘落点近似溯源」（2026-10-20 起 OpenCode Go 不再返回该头） |
 | `gateway.endpointId` 等 | string? | 已知角色平铺（旧字段兼容）：`upstreamModelId` / `logId` / `zenModel` / `placement` / `rayId` |
 | `gateway.matchedBy` | `'session' \| 'model'` | 会话关联 / model+时间窗兜底 |
 | `gateway.sessionId` / `sessionIdSource` / `at` / `ageMs` / `requestPath` / `endpointHost` | | 归因证据 |
@@ -122,12 +123,16 @@ GET /api/system-fingerprint/state?sessionId=<id>&provider=<id>&model=<id>&refres
 | `version` | `1` | 本文件契约版本 |
 | `updatedAt` | number(ms) | 最后写入时间 |
 | `note` | string | 用途说明（供人读，不可依赖内容） |
-| `endpoints` | object | key = `endpointId`；没有 endpointId 角色时用配置里第一个溯源字段值，兜底 `(未命名端点)` |
+| `endpoints` | object | key = `endpointId`；没有 endpointId 角色时用配置里第一个溯源字段值；上游定义了该角色但不返回时落固定桶 `(端点未披露)`（**不会**用 `logId` 等逐请求字段当 key），实在没有任何溯源字段才用 `(未命名端点)` |
 | `endpoints[id].count` / `sources` / `firstSeenAt` / `lastSeenAt` | | 观测次数与来源分桶（`capture` / `probe`） |
 | `endpoints[id].models[model]` | object | `{count, firstSeenAt, lastSeenAt, upstreamModelIds, idFamilies, contexts}` |
 | `endpoints[id].lastContext` | object | `{at, sessionId, sessionIdSource, requestModel, responseModel, upstreamModelId, zenModel, logId, rayId, placement, fields:[{key,value}], idFamily, status, source}` |
 
 `fields` 是 v1 内的**新增字段**（旧消费者忽略即可）：完整保留自定义 `gatewayHeaders` 角色。
+
+> 历史数据迁移：0.3.0 及更早版本在「上游不披露端点标识」时曾把 `log-id`（UUID）当 key，
+> 产生「一请求一个假端点」。0.3.1 起启动 hydrate 会把这类 UUID 键**幂等合并**进
+> `(端点未披露)` 桶（计数相加、时间取极值、模型明细合并），并立即落盘；键空间保持 v1 不变。
 
 ## 3. 文件契约 `config.json`（v1）
 

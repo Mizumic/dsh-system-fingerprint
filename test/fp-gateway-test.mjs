@@ -447,10 +447,13 @@ await checks('I2 不同端点各自成条 + lastContext 记到细节', () => {
   assert.equal(last.idFamily, 'hex-native')
   assert.equal(last.sessionIdSource, 'gateway')
 })
-await checks('I3 端点名缺失时兜底成占位，不丢数据', () => {
+await checks('I3 端点标识缺失（上游不披露）时归档到固定桶，不丢数据', () => {
   const env2 = createEnv(stubCtx(), {})
+  // gateway:{} = 没有端点标识，也没有任何溯源字段；默认配置里定义了 endpointId 角色，
+  // 因此必须落「(端点未披露)」，不能再退化成逐请求字段。
   accumulateEndpoint(env2, { at: now, gateway: {}, responseModel: 'm', status: 200 })
-  assert.ok(env2.endpoints.endpoints['(未命名端点)'], '应当归档到占位条目')
+  assert.ok(env2.endpoints.endpoints['(端点未披露)'], '应当归档到端点未披露固定桶')
+  assert.equal(Object.keys(env2.endpoints.endpoints).length, 1, '不能产生多余条目')
 })
 await checks('I4 没有网关证据的存证不污染登记表', () => {
   const env3 = createEnv(stubCtx(), {})

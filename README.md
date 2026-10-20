@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/Mizumic/dsh-system-fingerprint/actions/workflows/ci.yml/badge.svg)](https://github.com/Mizumic/dsh-system-fingerprint/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-218%20passing-brightgreen.svg)](#验证状态)
+[![Tests](https://img.shields.io/badge/tests-230%20passing-brightgreen.svg)](#验证状态)
 
 本仓库是**可分发型**独立仓库：不写本机绝对路径、无 `private`、
 供应商相关映射全部可配置、隐私默认安全。分发计划与完成状态见 [`ROADMAP.md`](ROADMAP.md)；
@@ -302,6 +302,17 @@ $DSH_HOME/storages/system-fingerprint/
 | `x-opencode-log-id`（`logId`） | 请求级日志 id（地位等同官方路由的 `x-ds-trace-id`） | 每次不同 |
 | `x-zen-model`（`zenModel`） / `cf-placement`（`placement`） / `cf-ray`（`rayId`） | 网关模型别名 / 边缘落点 / ray id | 每次不同 |
 
+> **2026-10-20 上游变更**：OpenCode Go 自该日起不再返回 `x-opencode-endpoint-id` 与
+> `x-opencode-upstream-model-id`（本机 11 次真实请求 × 8 个模型家族 × 两条网关路径 ×
+> 流式/非流式 × 直连/代理全部缺席，只剩 `log-id` / `x-zen-model` / `cf-placement` / `cf-ray`）。
+> 插件对此**降级**而不是造假：
+>
+> * 徽标主显示回退到模型别名（`zenModel`），再不行显示「网关·<边缘落点>」，绝不显示逐请求的 `logId`；
+> * 端点登记表落固定桶 `(端点未披露)`，**不再**把 `log-id`（UUID）当端点标识、每个请求造一个假端点；
+> * `state` 里新增 `gateway.endpointDisclosed: false` 标记，前端据此在悬浮卡里说明「上游不披露端点标识」；
+> * 上游恢复该响应头后，一切自动回到「显示池名 + 正常登记」。已有历史 UUID 假条目会在启动
+>   `hydrate` 时幂等并入 `(端点未披露)` 桶。
+
 上面是**默认映射**，不是硬编码。其它网关把同语义的头映射到这六个角色即可（角色之外的键名
 会当作附加溯实行展示），也可以整体关掉网关溯源：
 
@@ -310,13 +321,14 @@ $DSH_HOME/storages/system-fingerprint/
 gatewayHosts: [gw.example.com]
 gatewaySessionHeader: x-session-id      # 网关自己的会话头；false = 不做网关侧关联
 gatewayHeaders:
-  endpointId: x-upstream-provider       # 徽标主显示取配置里第一个有值的角色
+  endpointId: x-upstream-provider       # 徽标主显示优先取 endpointId
   logId: x-request-id
   cache: x-cache-status                 # 自定义角色 → 卡片里多一行 `cache`
 ```
 
-**主显示规则**：徽标显示 `gatewayHeaders` 里按配置顺序第一个有值的溯源字段；
-默认配置下就是 `endpointId`（后端池）。一个都没有时才回退到通用标签「网关溯源」。
+**主显示规则**：`endpointId` 有值就用它（后端池）；没有时若第一个溯源字段是**自定义角色**
+（配置里加的、不属于默认六角色）则用该字段值；否则回退到 `zenModel`，再不行显示
+「网关·<边缘落点>」。**始终不会**显示 `logId` 这类逐请求字段。
 
 两个必须说清楚的语义限制（悬浮卡里原文写出）：
 
@@ -386,7 +398,7 @@ gatewayHeaders:
 
 ```bash
 npm install        # 安装 devDependencies（jsdom / react / react-dom，用于真渲染回归）
-npm test           # 218 项离线验收（不联网；无凭据时「真实探测」段自动 SKIP）
+npm test           # 230 项离线验收（不联网；无凭据时「真实探测」段自动 SKIP）
 npm run test:offline   # 不含 jsdom 真渲染的快速子集
 npm run test:render    # 只跑 jsdom + React 18 真挂载回归
 ```
@@ -410,13 +422,14 @@ npm run test:render    # 只跑 jsdom + React 18 真挂载回归
 | --- | --- | --- |
 | `test/fp-host-test.mjs` | 73 | 映射表 md5、端点反推、拦截范围、探测归类/候选/可信度、配置归一化、网关映射默认值 |
 | `test/fp-gateway-test.mjs` | 58 | 网关溯源全链路：默认/自定义头映射、会话关联、state 网关模式、登记表、热升级、**captureRaw 默认关的隐私语义** |
+| `test/fp-gateway-fallback-test.mjs` | 12 | **上游不披露端点标识时的降级**：固定桶、不产生 UUID 假端点、徽标回退、`endpointDisclosed` 标记、历史污染幂等迁移、官方 DS 路径不受影响 |
 | `test/fp-client-test.mjs` | 43 | 卡片行结构/说明/footer、存证隐私三态、告警合并展示、中英文词典、上下翻转定位 |
 | `test/fp-gateway-client-test.mjs` | 12 | 网关 / 不适用 / 检查点三个渲染分支、自定义网关字段、旧存证回退 |
 | `test/fp-client-render-test.mjs` | 6 | jsdom + React 18 真挂载：hover、点击重探（历史 `const` 重赋值崩溃回归） |
 | `test/fp-distribution-test.mjs` | 14 | 分发硬约束：非 private、无本机绝对路径、隐私默认、文档/配置示例、依赖边界 |
 | `test/fp-interface-test.mjs` | 12 | 对外契约：HTTP apiVersion / config.json v1 白名单 / 外部告警输入 / 单向依赖 / 文档与版本同步 |
 
-合计 **218 项**。没有凭据时「真实探测」那一段会打印 SKIP（其余照跑）。
+合计 **230 项**。没有凭据时「真实探测」那一段会打印 SKIP（其余照跑）。
 
 ### 真实宿主实测（2026-10-17 / 18，历史记录）
 

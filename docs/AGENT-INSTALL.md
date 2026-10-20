@@ -53,7 +53,7 @@ npm install --no-audit --no-fund
 npm test
 ```
 
-期望：**218 项全过**；没有凭据时「真实探测」段打印 SKIP，其余照跑。
+期望：**230 项全过**；没有凭据时「真实探测」段打印 SKIP，其余照跑。
 不通过就不要继续安装——先修/报告失败用例。
 
 ## 3. 安装 / 升级（二选一）
@@ -107,7 +107,7 @@ plugin_manager set_bundle('dsh-system-fingerprint', true)
 ## 5. 升级
 
 1. `git -C "${REPO_DIR}" pull --ff-only`（GitHub 是主仓）
-2. `npm test`（218 项）通过
+2. `npm test`（230 项）通过
 3. 按 §3 重新安装/热加载（热加载要递增 `?v=N`）
 4. 重跑 §4 验证；在报告里写清旧版本 → 新版本
 

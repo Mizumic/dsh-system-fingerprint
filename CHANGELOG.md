@@ -25,6 +25,26 @@
   实际取值放 gitignored 的 `.local/symbols.env`）；仓库文档不再出现本机绝对路径。
   主仓迁移为 GitHub。
 
+## [0.3.1] - 2026-10-20
+
+### Fixed
+
+- **上游不披露端点标识时的降级（OpenCode Go 2026-10-20 变更）**：该日起网关不再返回
+  `x-opencode-endpoint-id` / `x-opencode-upstream-model-id`（只剩 `log-id` / `x-zen-model` /
+  `cf-placement` / `cf-ray`）。旧兜底会把逐请求的 `log-id`（UUID）当端点标识，导致：
+  - 会话徽标显示成一串 UUID（无法识别后端池）；
+  - 端点登记表「一请求一个假端点」，表被 UUID 键污染（实测单会话可积累数十条）。
+  修复后：
+  - 端点登记表在缺 `endpointId` 时落固定桶 **`(端点未披露)`**，绝不使用 `logId` 等逐请求字段；
+    自定义映射（第一个溯源字段不是默认六角色）仍沿用老行为当 key；
+  - 徽标主显示改为 `endpointId` → 自定义字段 → `zenModel` → `网关·<placement>`；
+  - `state` 新增 `gateway.endpointDisclosed`（`false` = 上游不披露），前端悬浮卡据此说明降级；
+  - 启动 `hydrate` 时把历史 UUID 假条目**幂等合并**进 `(端点未披露)` 桶（计数相加、时间取极值、
+    模型明细合并）并立即落盘；
+  - 上游恢复该响应头后自动回到「显示池名 + 正常登记」，无需再改代码。
+- 新增回归测试 `test/fp-gateway-fallback-test.mjs`（12 项）：固定桶、无 UUID 键、徽标回退、
+  `endpointDisclosed` 标记、自定义映射兜底、历史迁移幂等、官方 DeepSeek 指纹路径不受影响。
+
 ## [0.3.0] - 2026-10-20
 
 ### Added
