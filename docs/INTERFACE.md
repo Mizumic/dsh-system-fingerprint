@@ -86,6 +86,8 @@ GET /api/system-fingerprint/state?sessionId=<id>&provider=<id>&model=<id>&refres
 | `fingerprint` | object | `{available:false, systemFingerprint:null, checkpoint:null, reason:'upstream-no-system-fingerprint'}` |
 | `gateway.fields` | `[{key, value}]` | 按 `gatewayHeaders` 配置顺序的溯源字段（UI 直接渲染） |
 | `gateway.endpointDisclosed` | boolean | 端点标识是否由上游披露；`false` 时 UI 需说明「只能按模型别名/边缘落点近似溯源」（2026-10-20 起 OpenCode Go 不再返回该头） |
+| `gateway.routeHint` | object? | 最近一次请求的近似路由指纹：`{idFamily, gatewayNode, usageShape}`（都不是供应商名） |
+| `gateway.routeHints` | object? | 该端点累计的路由指纹分布：`{idFamilies, gatewayNodes, usageShapes}` → 计数 |
 | `gateway.endpointId` 等 | string? | 已知角色平铺（旧字段兼容）：`upstreamModelId` / `logId` / `zenModel` / `placement` / `rayId` |
 | `gateway.matchedBy` | `'session' \| 'model'` | 会话关联 / model+时间窗兜底 |
 | `gateway.sessionId` / `sessionIdSource` / `at` / `ageMs` / `requestPath` / `endpointHost` | | 归因证据 |
@@ -126,7 +128,8 @@ GET /api/system-fingerprint/state?sessionId=<id>&provider=<id>&model=<id>&refres
 | `endpoints` | object | key = `endpointId`；没有 endpointId 角色时用配置里第一个溯源字段值；上游定义了该角色但不返回时落固定桶 `(端点未披露)`（**不会**用 `logId` 等逐请求字段当 key），实在没有任何溯源字段才用 `(未命名端点)` |
 | `endpoints[id].count` / `sources` / `firstSeenAt` / `lastSeenAt` | | 观测次数与来源分桶（`capture` / `probe`） |
 | `endpoints[id].models[model]` | object | `{count, firstSeenAt, lastSeenAt, upstreamModelIds, idFamilies, contexts}` |
-| `endpoints[id].lastContext` | object | `{at, sessionId, sessionIdSource, requestModel, responseModel, upstreamModelId, zenModel, logId, rayId, placement, fields:[{key,value}], idFamily, status, source}` |
+| `endpoints[id].routeHints` | object | **新增（0.3.2）**：近似路由指纹分布 `{idFamilies, gatewayNodes, usageShapes}` → 计数；端点头缺失时仍可观察路由层变化 |
+| `endpoints[id].lastContext` | object | `{at, sessionId, sessionIdSource, requestModel, responseModel, upstreamModelId, zenModel, logId, rayId, placement, fields:[{key,value}], idFamily, routeHint:{idFamily,gatewayNode,usageShape}, status, source}` |
 
 `fields` 是 v1 内的**新增字段**（旧消费者忽略即可）：完整保留自定义 `gatewayHeaders` 角色。
 

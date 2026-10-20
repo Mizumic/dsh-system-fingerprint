@@ -25,6 +25,20 @@
   实际取值放 gitignored 的 `.local/symbols.env`）；仓库文档不再出现本机绝对路径。
   主仓迁移为 GitHub。
 
+## [0.3.2] - 2026-10-20
+
+### Added
+
+- **近似路由指纹（端点头缺失时的降级观测）**：登记表新增 `routeHints` 聚合与
+  `lastContext.routeHint`，记录 `idFamilies`（`gateway` / `hex-native` / `chatcmpl` / `uuid`…）、
+  `gatewayNodes`（`gw-<节点>-<计数>` 里的节点段）与 `usageShapes`
+  （`deepseek-native` / `openai-cached` / `standard`）。这些**不是供应商名**，
+  但能在上游不披露端点标识时回答「有几类路由、什么时候换过」；`/state` 同步暴露
+  `gateway.routeHint` / `gateway.routeHints`，悬浮卡在端点未披露时增加「路由指纹（近似）」行。
+- 采集侧新增 usage 字段形态解析（`extractUsageShape`）与网关节点解析（`gatewayNodeOf`）；
+  `captureResponse` 把 `usageShape` 写进存证。
+- 回归测试 `test/fp-gateway-fallback-test.mjs` 扩展至 16 项（路由指纹分布、capture 解析）。
+
 ## [0.3.1] - 2026-10-20
 
 ### Fixed

@@ -23,7 +23,7 @@ const HOME = mkdtempSync(join(tmpdir(), 'fp-fallback-'))
 process.env.DSH_HOME = HOME
 
 const { _internals } = await import(pathToFileURL(join(ROOT, 'lib/index.js')).href)
-const { createEnv, accumulateEndpoint, valueOfGateway, hydrateEndpoints, persistEndpoints } = _internals
+const { createEnv, accumulateEndpoint, valueOfGateway, hydrateEndpoints, persistEndpoints, captureResponse, extractUsageShape, gatewayNodeOf } = _internals
 
 const stubCtx = () => ({ get: () => undefined })
 const SESSION = 'session-4a931228-09e0-41a7-8f97-3e459c4047d9'
@@ -267,6 +267,80 @@ await run('G1 无网关证据的存证不写登记表（官方 DS 指纹路径�
   const before = JSON.stringify(env.endpoints)
   assert.equal(accumulateEndpoint(env, { at: 1, gateway: null, responseModel: 'deepseek-flash' }), false)
   assert.equal(JSON.stringify(env.endpoints), before)
+})
+
+// ── H. 近似路由指纹（方案 A）──────────────────────────────────────────────────
+await run('H1 usage 字段形态与网关节点解析', () => {
+  assert.equal(extractUsageShape('{"usage":{"prompt_cache_hit_tokens":1}}'), 'deepseek-native')
+  assert.equal(extractUsageShape('{"usage":{"prompt_tokens_details":{"cached_tokens":1}}}'), 'openai-cached')
+  assert.equal(extractUsageShape('{"usage":{"total_tokens":1}}'), 'standard')
+  assert.equal(extractUsageShape('{"choices":[]}'), null)
+  assert.equal(gatewayNodeOf('gw-f236bace16e-305'), 'f236bace16e')
+  assert.equal(gatewayNodeOf('0217924738'), null)
+})
+
+await run('H2 端点标识缺失时登记表记录路由指纹分布（id 形态/网关节点/usage）', () => {
+  const env = createEnv(stubCtx(), {})
+  const meta = metaMissingEndpoint(UUID_A, 1000)
+  meta.responseId = 'gw-f236bace16e-305'
+  meta.usageShape = 'openai-cached'
+  accumulateEndpoint(env, meta)
+  const bucket = env.endpoints.endpoints['(端点未披露)']
+  assert.deepEqual(bucket.lastContext.routeHint, { idFamily: 'gateway', gatewayNode: 'f236bace16e', usageShape: 'openai-cached' })
+  assert.equal(bucket.routeHints.idFamilies.gateway, 1)
+  assert.equal(bucket.routeHints.gatewayNodes.f236bace16e, 1)
+  assert.equal(bucket.routeHints.usageShapes['openai-cached'], 1)
+  // 第二类路由指纹：累加而不是覆盖
+  const meta2 = metaMissingEndpoint(UUID_B, 2000)
+  meta2.responseId = '0217924738abcdef0123456789abcdef01234567'
+  meta2.usageShape = 'openai-cached'
+  accumulateEndpoint(env, meta2)
+  assert.equal(bucket.routeHints.idFamilies['hex-native'], 1)
+  assert.equal(bucket.routeHints.idFamilies.gateway, 1)
+  assert.equal(bucket.lastContext.routeHint.idFamily, 'hex-native')
+})
+
+await run('H3 徽标数据带出 routeHint/routeHints 供悬浮卡展示', () => {
+  const env = createEnv(stubCtx(), {})
+  const meta = metaMissingEndpoint(UUID_A, 1000)
+  meta.responseId = 'gw-f236bace16e-305'
+  meta.usageShape = 'openai-cached'
+  accumulateEndpoint(env, meta)
+  const bucket = env.endpoints.endpoints['(端点未披露)']
+  const value = valueOfGateway(env, TARGET, { matchedBy: 'session', entry: { ...bucket, gateway: meta.gateway } }).value
+  assert.deepEqual(value.gateway.routeHint, { idFamily: 'gateway', gatewayNode: 'f236bace16e', usageShape: 'openai-cached' })
+  assert.equal(value.gateway.routeHints.gatewayNodes.f236bace16e, 1)
+})
+
+await run('H4 captureResponse 从响应体解析 usage 形态并折进登记表', async () => {
+  const env = createEnv(stubCtx(), {})
+  const response = new Response(JSON.stringify({
+    id: 'gw-f236bace16e-30f',
+    model: 'deepseek-v4.1-flash',
+    usage: { prompt_tokens: 1, completion_tokens: 1, prompt_tokens_details: { cached_tokens: 0 } },
+    choices: [{ index: 0, message: { role: 'assistant', content: 'ok' } }],
+  }), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json',
+      'x-zen-model': 'deepseek-v4.1-flash',
+      'x-opencode-log-id': UUID_A,
+      'cf-placement': 'remote-IAD',
+    },
+  })
+  const meta = await captureResponse(env, response, {
+    kind: 'chat',
+    path: '/zen/go/v1/chat/completions',
+    requestUrl: 'https://opencode.ai/zen/go/v1/chat/completions',
+    conversationBase: 'https://opencode.ai/zen/go',
+    requestModel: 'deepseek-v4.1-flash',
+    sessionId: SESSION,
+    sessionIdSource: 'gateway',
+  })
+  assert.equal(meta.usageShape, 'openai-cached')
+  const bucket = env.endpoints.endpoints['(端点未披露)']
+  assert.equal(bucket.routeHints.gatewayNodes.f236bace16e, 1)
+  assert.equal(bucket.routeHints.usageShapes['openai-cached'], 1)
 })
 
 rmSync(HOME, { recursive: true, force: true })

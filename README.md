@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/Mizumic/dsh-system-fingerprint/actions/workflows/ci.yml/badge.svg)](https://github.com/Mizumic/dsh-system-fingerprint/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-230%20passing-brightgreen.svg)](#验证状态)
+[![Tests](https://img.shields.io/badge/tests-234%20passing-brightgreen.svg)](#验证状态)
 
 本仓库是**可分发型**独立仓库：不写本机绝对路径、无 `private`、
 供应商相关映射全部可配置、隐私默认安全。分发计划与完成状态见 [`ROADMAP.md`](ROADMAP.md)；
@@ -312,6 +312,12 @@ $DSH_HOME/storages/system-fingerprint/
 > * `state` 里新增 `gateway.endpointDisclosed: false` 标记，前端据此在悬浮卡里说明「上游不披露端点标识」；
 > * 上游恢复该响应头后，一切自动回到「显示池名 + 正常登记」。已有历史 UUID 假条目会在启动
 >   `hydrate` 时幂等并入 `(端点未披露)` 桶。
+>
+> **近似路由指纹（0.3.2+）**：端点头缺失时，登记表还会聚合 `routeHints` ——
+> `idFamilies`（`gateway` / `hex-native` / `chatcmpl` / `uuid`…）、`gatewayNodes`（`gw-<节点>-…`
+> 里的节点段）、`usageShapes`（`deepseek-native` / `openai-cached` / `standard`）。
+> 它们**不是供应商名**，但能回答「今天有几类路由、什么时候换过」；悬浮卡在端点未披露时
+> 会多一行「路由指纹（近似）」。配套巡检脚本见 `opencode-go/route-fingerprint.mjs`（另一个仓库）。
 
 上面是**默认映射**，不是硬编码。其它网关把同语义的头映射到这六个角色即可（角色之外的键名
 会当作附加溯实行展示），也可以整体关掉网关溯源：
@@ -398,7 +404,7 @@ gatewayHeaders:
 
 ```bash
 npm install        # 安装 devDependencies（jsdom / react / react-dom，用于真渲染回归）
-npm test           # 230 项离线验收（不联网；无凭据时「真实探测」段自动 SKIP）
+npm test           # 234 项离线验收（不联网；无凭据时「真实探测」段自动 SKIP）
 npm run test:offline   # 不含 jsdom 真渲染的快速子集
 npm run test:render    # 只跑 jsdom + React 18 真挂载回归
 ```
@@ -422,14 +428,14 @@ npm run test:render    # 只跑 jsdom + React 18 真挂载回归
 | --- | --- | --- |
 | `test/fp-host-test.mjs` | 73 | 映射表 md5、端点反推、拦截范围、探测归类/候选/可信度、配置归一化、网关映射默认值 |
 | `test/fp-gateway-test.mjs` | 58 | 网关溯源全链路：默认/自定义头映射、会话关联、state 网关模式、登记表、热升级、**captureRaw 默认关的隐私语义** |
-| `test/fp-gateway-fallback-test.mjs` | 12 | **上游不披露端点标识时的降级**：固定桶、不产生 UUID 假端点、徽标回退、`endpointDisclosed` 标记、历史污染幂等迁移、官方 DS 路径不受影响 |
+| `test/fp-gateway-fallback-test.mjs` | 16 | **上游不披露端点标识时的降级**：固定桶、不产生 UUID 假端点、徽标回退、`endpointDisclosed` 标记、历史污染幂等迁移、官方 DS 路径不受影响 |
 | `test/fp-client-test.mjs` | 43 | 卡片行结构/说明/footer、存证隐私三态、告警合并展示、中英文词典、上下翻转定位 |
 | `test/fp-gateway-client-test.mjs` | 12 | 网关 / 不适用 / 检查点三个渲染分支、自定义网关字段、旧存证回退 |
 | `test/fp-client-render-test.mjs` | 6 | jsdom + React 18 真挂载：hover、点击重探（历史 `const` 重赋值崩溃回归） |
 | `test/fp-distribution-test.mjs` | 14 | 分发硬约束：非 private、无本机绝对路径、隐私默认、文档/配置示例、依赖边界 |
 | `test/fp-interface-test.mjs` | 12 | 对外契约：HTTP apiVersion / config.json v1 白名单 / 外部告警输入 / 单向依赖 / 文档与版本同步 |
 
-合计 **230 项**。没有凭据时「真实探测」那一段会打印 SKIP（其余照跑）。
+合计 **234 项**。没有凭据时「真实探测」那一段会打印 SKIP（其余照跑）。
 
 ### 真实宿主实测（2026-10-17 / 18，历史记录）
 
