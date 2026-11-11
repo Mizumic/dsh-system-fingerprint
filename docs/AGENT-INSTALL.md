@@ -100,14 +100,17 @@ plugin_manager set_bundle('dsh-system-fingerprint', true)
 | 4 | 近期探测到的检查点 | `${CONFIG_JSON}` 的 `checkpoint` | `fingerprint` 32 位 hex；已知检查点应有 `name`（如 `flash 1017`） |
 | 5 | 浏览器徽标 | 用户 F5 后看会话头部 | 显示检查点名 / 网关溯源 / `不适用`；悬停卡片正常；`level=ok` 时无 `⚠` |
 | 6 | 下游联动（可选） | 若装 driftmon：`node bin/driftmon.mjs status` | 输出「只读配置 v1」与「当前检查点：<name> · <fingerprint>」 |
+| 7 | A/B 与可信度（0.3.3） | `${CONFIG_JSON}` 的 `checkpoint.samples` / `checkpoint.variants`；徽标悬浮卡的「同层可信度」 | `samples` = 本轮采样次数（建议 3）；A/B 期间 `variants` 有内容、徽标文案带 `· A/B`；可信度非 `high` 时徽标为警示色，悬浮卡说明原因（无观测 / 配置回退 / 同 host） |
 
 > 无法执行第 5 项时（agent 无浏览器控制），明确报告「浏览器侧未验证，需用户 F5 确认」，
 > 不要仅凭安装返回 `applied` 就宣称用户可以看到徽标。
+>
+> 文档索引见 [`README.md`](README.md)（契约 / 内部架构 / 测试矩阵）；本文件只讲安装与验证。
 
 ## 5. 升级
 
 1. `git -C "${REPO_DIR}" pull --ff-only`（GitHub 是主仓）
-2. `npm test`（234 项）通过
+2. `npm test`（244 项；只跑运行时回归可用 `npm run test:fresh`）通过
 3. 按 §3 重新安装/热加载（热加载要递增 `?v=N`）
 4. 重跑 §4 验证；在报告里写清旧版本 → 新版本
 
