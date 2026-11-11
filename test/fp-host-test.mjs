@@ -24,14 +24,20 @@ function check (label, condition, extra = '') {
   }
 }
 
-// 1) 内置映射表
-for (const row of I.DEFAULT_CHECKPOINTS) check(`md5(${row.name})`, I.md5Hex(row.plaintext) === row.fingerprint)
+// 1) 内置映射表：有明文的必须满足 md5(明文) === 指纹；无明文的（社区标注、未验证）只校验指纹形态。
+for (const row of I.DEFAULT_CHECKPOINTS) {
+  if (typeof row.plaintext === 'string' && row.plaintext.length > 0) {
+    check(`md5(${row.name})`, I.md5Hex(row.plaintext) === row.fingerprint)
+  } else {
+    check(`unverified(${row.name})`, /^[0-9a-f]{32}$/u.test(row.fingerprint))
+  }
+}
 
 // 2) 配置归一化
 const config = I.normalizeConfig({ checkpointTable: [{ name: 'only-plaintext', plaintext: 'abc' }] })
 check('plaintext-only table derives md5', config.checkpoints[0].fingerprint === I.md5Hex('abc'))
 const defaults = I.normalizeConfig(undefined)
-check('default table size', defaults.checkpoints.length === 4)
+check('default table size', defaults.checkpoints.length === 5)
 check('default baseURL', defaults.openaiBaseURL === 'https://api.deepseek.com')
 // 分发版隐私默认：拦截元数据开、原始字节落盘关（原始响应体可能含模型正文）。
 check('capture default on', defaults.capture === true)

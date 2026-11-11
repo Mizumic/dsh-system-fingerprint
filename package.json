@@ -1,6 +1,6 @@
 {
   "name": "dsh-system-fingerprint",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "会话头部的模型检查点徽标：主动探测 system_fingerprint 映射成检查点名（未收录显示原始 md5）；上游不返回指纹时展示可配置的网关请求级溯源；拦截响应元数据用于存证与端点登记（原始字节默认不落盘）",
   "type": "module",
   "main": "lib/index.js",
@@ -53,9 +53,10 @@
     "bundle"
   ],
   "scripts": {
-    "test": "node test/fp-distribution-test.mjs && node test/fp-interface-test.mjs && node test/fp-host-test.mjs && node test/fp-gateway-test.mjs && node test/fp-gateway-fallback-test.mjs && node test/fp-client-test.mjs && node test/fp-gateway-client-test.mjs && node test/fp-client-render-test.mjs",
-    "test:offline": "node test/fp-distribution-test.mjs && node test/fp-interface-test.mjs && node test/fp-host-test.mjs && node test/fp-gateway-test.mjs && node test/fp-gateway-fallback-test.mjs && node test/fp-client-test.mjs && node test/fp-gateway-client-test.mjs",
-    "test:render": "node test/fp-client-render-test.mjs"
+    "test": "node test/fp-distribution-test.mjs && node test/fp-interface-test.mjs && node test/fp-host-test.mjs && node test/fp-gateway-test.mjs && node test/fp-gateway-fallback-test.mjs && node test/fp-client-test.mjs && node test/fp-gateway-client-test.mjs && node test/fp-client-render-test.mjs && node test/fp-confidence-fresh-test.mjs && node test/fp-client-retry-test.mjs",
+    "test:offline": "node test/fp-distribution-test.mjs && node test/fp-interface-test.mjs && node test/fp-host-test.mjs && node test/fp-gateway-test.mjs && node test/fp-gateway-fallback-test.mjs && node test/fp-client-test.mjs && node test/fp-gateway-client-test.mjs && node test/fp-confidence-fresh-test.mjs && node test/fp-client-retry-test.mjs",
+    "test:render": "node test/fp-client-render-test.mjs",
+    "test:fresh": "node test/fp-confidence-fresh-test.mjs && node test/fp-client-retry-test.mjs"
   },
   "devDependencies": {
     "jsdom": "^30.1.3",
