@@ -25,6 +25,37 @@
   实际取值放 gitignored 的 `.local/symbols.env`）；仓库文档不再出现本机绝对路径。
   主仓迁移为 GitHub。
 
+## [0.3.3] - 2026-11-11
+
+### Added
+
+- **A/B 灰度识别**：`stabilityChecks > 1` 时一次探测采样多次；指纹不一致时主指纹取多数，
+  逐指纹计数写入 `stable=false` / `variants`。`/state` 新增 `abTest` 与 `fingerprintVariants`；
+  `config.json` 的 `checkpoint` 增加 `samples` / `variants`（v1 内只增字段，旧消费者忽略即可）。
+- **检查点表**：新增 `flash 1027`（`bc19ba97…`）。该行**只有指纹、没有明文**（社区命名、未经
+  `md5(明文)` 验证），悬浮卡会显示「检查点未验证」提示；其余四行仍校验明文↔md5。
+- **错误码细分**：新增 `endpoint-unavailable`（探测路径 404/405/501，自动尝试下一个候选路径）；
+  徽标按错误码给出短文案（超时/限流/凭据被拒/端点不可用/响应异常等），不再统一显示「指纹不可用」。
+- **悬浮卡**：新增「指纹变体」行（A/B 时主/次与次数）、A/B 说明、未验证检查点提示。
+
+### Fixed
+
+- **同层可信度改为每次取数按当前观测重算**：修复 60s 缓存命中时只修正 `endpoint.source`
+  却沿用探测开始时的 `confidence`，返回「`observed` + `low`」的矛盾快照，导致徽标持续显示警示色、
+  点击强制探测后要等缓存过期才恢复。
+- **探测缓存写入按探测开始时刻排序**：观测建立前启动的慢探测晚一步落地时，不再覆盖点击强制刷新
+  得到的新结果。
+- **并发探测的 in-flight 清理**：只删除自己登记的探测，避免误删后续探测的去重记录。
+- **浏览器半边自动复检**：可信度不是 `high` 时按 5s/10s/20s/40s/60s 复检最多 5 次，转 `high`、
+  用户点击或次数用尽即停；不再需要等 10 分钟主轮询。
+
+### Changed
+
+- 文档：README 补充 A/B 灰度、错误码、可信度口径与复检开销；`docs/INTERFACE.md` 补充
+  0.3.3 新增字段与错误码；新增 `docs/ARCHITECTURE.md`、`docs/TESTING.md`、`docs/README.md`（文档索引）。
+- 测试：新增 `test/fp-confidence-fresh-test.mjs`（3 项）与 `test/fp-client-retry-test.mjs`（6 项），
+  全量 **244 项**；`npm run test:fresh` 可单独回归。
+
 ## [0.3.2] - 2026-10-20
 
 ### Added

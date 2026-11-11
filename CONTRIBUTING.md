@@ -14,11 +14,14 @@
 git clone https://github.com/Mizumic/dsh-system-fingerprint.git
 cd dsh-system-fingerprint
 npm install        # devDependencies: jsdom / react / react-dom
-npm test           # 218 项离线验收，不联网
+npm test           # 244 项离线验收，不联网
 ```
 
 `npm test` 不需要真实 API key：无凭据时「真实探测」段会自动 SKIP，其余全量运行。
-提交 PR 前必须让 `npm test` 全绿。
+提交 PR 前必须让 `npm test` 全绿；只跑两条运行时回归可用 `npm run test:fresh`。
+
+文档索引：[`docs/README.md`](docs/README.md)。改行为/契约时同步更新 README、
+`docs/INTERFACE.md`、`docs/ARCHITECTURE.md` 与 `docs/TESTING.md` 中受影响的部分。
 
 ## 可以做什么
 

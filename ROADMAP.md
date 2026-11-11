@@ -70,6 +70,22 @@
       `files` 随包分发 `docs`、`LICENSE`、`CHANGELOG.md`。
 - [x] 仓库内零本机绝对路径、零凭据、零 raw 存证数据（`test/fp-distribution-test.mjs` 断言）。
 
+### P5 · 运行时可信度修复（2026-11-11 完成）
+
+围绕「徽标持续警示色、点击强制探测后仍不立即恢复」的排查与修复：
+
+- [x] 定位三个静默缺陷：缓存命中沿用旧 `confidence`、慢探测覆盖新结果、in-flight 误删。
+- [x] 宿主改为**每次取数按当前会话观测重算**同层可信度（`reassessProbe`）；
+      缓存写入按探测开始时刻排序，并发清理按登记对象比对。
+- [x] 浏览器半边在警示色期间做有界自动复检（5s/10s/20s/40s/60s，最多 5 次），
+      转 `high` / 点击 / 次数用尽即停，之后回到 10 分钟主轮询。
+- [x] 回归：新增 `test/fp-confidence-fresh-test.mjs`（3 项）与 `test/fp-client-retry-test.mjs`（6 项）；
+      全量 **244 项**通过。
+- [x] 契约：`/state` 增 `abTest` / `fingerprintVariants`，`config.json` 增 `checkpoint.samples|variants`，
+      错误码增 `endpoint-unavailable`；均属 v1 内只增字段，`apiVersion` 保持 1。
+- [x] 文档：`docs/ARCHITECTURE.md`、`docs/TESTING.md`、`docs/README.md` 索引；
+      README / INTERFACE 同步 0.3.3 行为与开销。
+
 ## 明确不做
 
 | 事项 | 原因 |
@@ -80,6 +96,6 @@
 
 ## 验证口径
 
-* 离线：`npm test`（无凭据时真实探测段自动 SKIP）。
+* 离线：`npm test`（全量 244 项；无凭据时真实探测段自动 SKIP）。
 * 真实宿主：安装见 README「安装（分发）」，宿主立即生效、浏览器半边刷新页面。
 * 判定类结论不放这里：插件只负责**展示与存证**，漂移判定全部留在 driftmon（可回放）。

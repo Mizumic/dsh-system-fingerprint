@@ -8,11 +8,12 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/Mizumic/dsh-system-fingerprint/actions/workflows/ci.yml/badge.svg)](https://github.com/Mizumic/dsh-system-fingerprint/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-234%20passing-brightgreen.svg)](#验证状态)
+[![Tests](https://img.shields.io/badge/tests-244%20passing-brightgreen.svg)](#验证状态)
 
 本仓库是**可分发型**独立仓库：不写本机绝对路径、无 `private`、
 供应商相关映射全部可配置、隐私默认安全。分发计划与完成状态见 [`ROADMAP.md`](ROADMAP.md)；
-对外契约（HTTP / 文件）见 [`docs/INTERFACE.md`](docs/INTERFACE.md)。
+全部文档的索引入口见 [`docs/README.md`](docs/README.md)（对外契约 [`docs/INTERFACE.md`](docs/INTERFACE.md)、
+内部架构 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)、测试 [`docs/TESTING.md`](docs/TESTING.md)）。
 
 ## 目录
 
@@ -21,6 +22,7 @@
 - [安装（分发）](#安装分发)
 - [隐私默认](#隐私默认)
 - [配置](#配置)
+- [A/B 灰度（2026-10-27）](#ab-灰度2026-10-27)
 - [对外接口（契约 v1）](#对外接口契约-v1)
 - [存证目录与存储预算](#存证目录与存储预算)
 - [同层探测与可信度](#同层探测与可信度)
@@ -59,6 +61,8 @@
   warn/critical 时徽标追加 `⚠` 并转警示色；悬浮卡片里多出「行为告警」与 changed 通道行。
   缺失/损坏静默降级——插件不依赖任何产出方。
 * **同层可信度不是 high**：徽标圆点转警示色，悬浮卡说明原因（见「同层探测与可信度」）。
+  可信度按**当前**观测实时重算：首次挂载若早于「本会话真实请求被拦截」，会先显示警示色，
+  随后按 5s→60s 递增间隔自动复检几次，观测一到位就转绿，不必等 10 分钟主轮询。
 * **悬停**：自定义悬浮卡片（不是原生 title）——标签/值两列、每条信息一行、长值（指纹/明文/trace id）
   自动换行；依次展示模型、检查点、指纹、明文、来源、探测端点/对话端点、同层可信度、探测时间、
   最近真实对话响应与探测的时间差、trace id、稳定性、响应存证（元数据/原始字节各自开关状态）；
@@ -66,8 +70,10 @@
 * **点击刷新反馈**：点击后徽标圆点变成转圈 + 文字「重新探测…」；卡片底部依次显示
   「正在重新探测…」→「刚刚已重新探测」；结果返回很快时也会保证这段反馈至少可见约 0.65s，
   避免「点了像没反应」。
-* **点击**：绕过缓存强制重新探测。
-* **轮询**：页面可见时每 **10 分钟**一次（探测是真实计费请求，见「开销」）。
+* **点击**：绕过缓存强制重新探测；若返回时可信度仍不是 high（例如本会话还没有真实请求证据），
+  会重新排队自动复检，而不是把旧结论一直挂着。
+* **轮询**：页面可见时每 **10 分钟**一次（探测是真实计费请求，见「开销」）；警示色期间
+  额外按 5s/10s/20s/40s/60s 复检最多 5 次，转 high 或次数用尽后回到主轮询。
 
 ## 环境要求
 
@@ -150,7 +156,7 @@ git clone https://github.com/Mizumic/dsh-system-fingerprint.git
 | `apiKeyEnv` | `DEEPSEEK_API_KEY` | credentials ref；不存明文 |
 | `timeoutMs` | `15000` | 单次探测超时 |
 | `cacheTtlMs` | `60000` | 成功结果缓存（合并刷新/并发，不是轮询间隔） |
-| `stabilityChecks` | `1` | >1 时同请求多次，结果写入 `stable` |
+| `stabilityChecks` | `1` | >1 时同请求多次采样：结果写入 `stable`，不一致时把逐指纹计数写入 `abTest` / `fingerprintVariants`。**建议 3**：2026-10-27 起上游 A/B 灰度时，单次探测约有 50% 概率漏掉新指纹 |
 | `capture` | `true` | **响应拦截总开关**：拦截模型响应并保留元数据/响应头证据；关掉后徽标只剩主动探测 |
 | `captureRaw` | **`false`** | **原始字节落盘开关**（原始体含模型正文；分发版默认关，存证场景显式打开） |
 | `captureHeaders` | `true` | 是否连请求头/响应头原文一起存证（凭据字段始终 `<redacted>`，键名小写、值截断 512） |
@@ -160,14 +166,14 @@ git clone https://github.com/Mizumic/dsh-system-fingerprint.git
 | `gatewaySessionHeader` | `x-opencode-session` | 网关自己的会话头（harness 会话头缺席时用它关联响应）；`false` = 不关联 |
 | `maxRawBytes` | `524288` | 单份原始响应最多保存字节数（超出截断；仅 `captureRaw: true` 时生效） |
 | `maxRawFiles` | `120` | raw 目录保留文件上限（按时间淘汰旧文件；仅 `captureRaw: true` 时生效） |
-| `checkpointTable` | 内置 4 行 | 可替换的映射表，条目形如 `{ name, plaintext?, fingerprint? }`；只给 `plaintext` 时插件自行算 md5。换供应商时把自己的指纹/明文填进来即可 |
+| `checkpointTable` | 内置 5 行 | 可替换的映射表，条目形如 `{ name, plaintext?, fingerprint? }`；只给 `plaintext` 时插件自行算 md5。换供应商时把自己的指纹/明文填进来即可 |
 | `externalAlertFile` | 空（不读） | 可选外部行为告警文件路径（通用 schema v1，只读展示）；缺失/损坏/版本不认识都静默降级 |
 
 非 DeepSeek 路由的语义：主动探测只针对 `provider` 配置的那条路由；其它路由如果响应里**实际**
 带 `system_fingerprint`，徽标照样优先采用实际响应；如果既不返回指纹、又没配网关溯源头，
 就显示「不适用」——插件不会拿别的路由的检查点冒充。
 
-映射表默认值（与文档一致，4/4 实测通过）：
+映射表默认值（前 4 条明文 ↔ md5 已实测验证；第 5 条明文未反推出，只登记指纹）：
 
 | 检查点 | 明文 | fingerprint |
 | --- | --- | --- |
@@ -175,6 +181,32 @@ git clone https://github.com/Mizumic/dsh-system-fingerprint.git
 | v4f 0908（内测） | `fp_v41f_0908_prod0820_fp8_kvcache_20260402_fp` | `6d641ab0…` |
 | flash 0910（统一版） | `fp_dsv41f_0910_prod0820_fp8_kvcache_20260402_fp` | `aeb56401…` |
 | flash 1017 | `fp_dsv41f_1017_prod0820_fp8_kvcache_20260402_fp` | `e72d3c7f…` |
+| flash 1027（暂按社区说法命名） | —（**未破解**） | `bc19ba97…` |
+
+## A/B 灰度（2026-10-27）
+
+**现象**：2026-10-27 18:21 CST 起，`deepseek-flash` / `deepseek-v4-flash` /
+`deepseek-v4-flash-vision-exp` 的响应里**逐请求**出现两个 `system_fingerprint`：
+旧值 `e72d3c7f…`（flash 1017）与新值 `bc19ba97…`，约 50/50；19:10 CST 后新值变为 100%
+（旧后端在观测窗口内已不可达）。上游 `api.deepseek.com` 是同一端点、同一 tokenizer
+（T 通道计数不变），所以这不是“换了模型名”，而是**同一模型在灰度新构建**。
+
+**插件行为**（0.3.3）：
+
+* 一次探测采样 `stabilityChecks` 次（建议 3）。指纹一致 → 照旧显示检查点名、`stable: true`。
+* 不一致 → 主指纹取出现次数最多者；徽标变成 `检查点名 · A/B`（警示色），
+  悬浮卡新增「指纹变体」行（主/次 + 次数），并附 A/B 说明。
+* `/state` 新增 `abTest`（布尔）与 `fingerprintVariants`（`[{fingerprint, count, name, plaintext}]`，
+  非 A/B 时为 `null`）；`config.json` 的 `checkpoint` 增加 `samples` 与 `variants`（v1 只增字段，
+  driftmon 忽略未知字段不受影响）。
+
+> 提醒：A/B 期间**任何单次探测**都只能代表这一刻的后端；判断“当前检查点”要看
+> `stabilityChecks ≥ 3` 的多数结果，或直接看徽标是否带 `· A/B`。
+
+> **命名状态**：`flash 1027` 这个名字来自社区/第三方对 2026-10-27 构建的叫法
+> （OrcaRouter 称“V4.1 Flash 1027 checkpoint”）。**我们没有破解出明文**，也没有
+> `md5(明文) = bc19ba97…` 的证据；名字只是标签，徽标悬浮卡会显示
+> 「检查点未验证」提示，不应把它当作已确认的检查点身份。
 
 ## 对外接口（契约 v1）
 
@@ -201,6 +233,8 @@ GET /api/system-fingerprint/state?sessionId=…&provider=…&model=…&refresh=1
 模型解析优先级：query > 会话 `modelSelection` 投影 > 已拦截的 `llm/stream` 调用 > 默认模型 > 配置。
 响应顶层带 `apiVersion: 1`；`ok` 表示成功，错误码见 [`docs/INTERFACE.md`](docs/INTERFACE.md)。
 返回体里 `endpoint` / `confidence` / `confidenceNote` 描述这次探测的端点层与可信度；
+**可信度在每次取数时按当前观测重算**（不是探测开始时的旧结论），并额外带 `abTest`
+与 `fingerprintVariants`（A/B 灰度时逐指纹计数，非 A/B 为 `null`）；
 网关模式下 `gateway.fields` 是按配置顺序的溯源字段数组（UI 直接渲染），
 已知角色同时平铺在 `gateway.endpointId` / `upstreamModelId` / `logId` / `zenModel` /
 `placement` / `rayId` 上（对外脚本兼容）。
@@ -303,7 +337,7 @@ $DSH_HOME/storages/system-fingerprint/
 | `x-zen-model`（`zenModel`） / `cf-placement`（`placement`） / `cf-ray`（`rayId`） | 网关模型别名 / 边缘落点 / ray id | 每次不同 |
 
 > **2026-10-20 上游变更**：OpenCode Go 自该日起不再返回 `x-opencode-endpoint-id` 与
-> `x-opencode-upstream-model-id`（本机 11 次真实请求 × 8 个模型家族 × 两条网关路径 ×
+> `x-opencode-upstream-model-id`（实测 11 次真实请求 × 8 个模型家族 × 两条网关路径 ×
 > 流式/非流式 × 直连/代理全部缺席，只剩 `log-id` / `x-zen-model` / `cf-placement` / `cf-ray`）。
 > 插件对此**降级**而不是造假：
 >
@@ -386,6 +420,8 @@ gatewayHeaders:
 * 每次探测是真实 API 调用：实测 `31 prompt + 1 completion = 32 tokens`（`max_tokens:1`）。
 * 页面可见时每 10 分钟一次：约 `32 × 144 = 4.6k tokens/天`（轮换检查点的量级，和正常对话相比可忽略，但非零）。
 * 点徽标强制刷新、页面刷新/重挂载会额外触发；宿主有 60s 缓存合并短时间内的重复请求。
+* 徽标处于警示色（同层可信度不是 `high`）时，客户端按 5s/10s/20s/40s/60s 自动复检最多 5 次；
+  复检优先命中宿主 60s 缓存（不产生新探测），只有缓存过期后才会发起新的探测请求。
 * 拦截层是本地 `clone()` + 内存解析，**不产生任何额外 API 调用**；
   `captureRaw` 默认关，磁盘上不留模型正文；打开后 raw 目录按 `maxRawFiles` 滚动淘汰。
 
@@ -404,9 +440,10 @@ gatewayHeaders:
 
 ```bash
 npm install        # 安装 devDependencies（jsdom / react / react-dom，用于真渲染回归）
-npm test           # 234 项离线验收（不联网；无凭据时「真实探测」段自动 SKIP）
+npm test           # 244 项离线验收（不联网；无凭据时「真实探测」段自动 SKIP）
 npm run test:offline   # 不含 jsdom 真渲染的快速子集
 npm run test:render    # 只跑 jsdom + React 18 真挂载回归
+npm run test:fresh     # 只跑「可信度实时重算 + 黄点自动复检」两条回归
 ```
 
 开发约定：
@@ -420,13 +457,13 @@ npm run test:render    # 只跑 jsdom + React 18 真挂载回归
 
 ## 验证状态
 
-### 离线测试（`npm test`，2026-10-20）
+### 离线测试（`npm test`，2026-11-11）
 
 `npm install` 后全量可跑（`devDependencies` 带 jsdom / react，真渲染回归不再 SKIP）：
 
 | 测试文件 | 检查数 | 覆盖 |
 | --- | --- | --- |
-| `test/fp-host-test.mjs` | 73 | 映射表 md5、端点反推、拦截范围、探测归类/候选/可信度、配置归一化、网关映射默认值 |
+| `test/fp-host-test.mjs` | 74 | 映射表 md5、端点反推、拦截范围、探测归类/候选/可信度、配置归一化、网关映射默认值 |
 | `test/fp-gateway-test.mjs` | 58 | 网关溯源全链路：默认/自定义头映射、会话关联、state 网关模式、登记表、热升级、**captureRaw 默认关的隐私语义** |
 | `test/fp-gateway-fallback-test.mjs` | 16 | **上游不披露端点标识时的降级**：固定桶、不产生 UUID 假端点、徽标回退、`endpointDisclosed` 标记、历史污染幂等迁移、官方 DS 路径不受影响 |
 | `test/fp-client-test.mjs` | 43 | 卡片行结构/说明/footer、存证隐私三态、告警合并展示、中英文词典、上下翻转定位 |
@@ -434,8 +471,10 @@ npm run test:render    # 只跑 jsdom + React 18 真挂载回归
 | `test/fp-client-render-test.mjs` | 6 | jsdom + React 18 真挂载：hover、点击重探（历史 `const` 重赋值崩溃回归） |
 | `test/fp-distribution-test.mjs` | 14 | 分发硬约束：非 private、无本机绝对路径、隐私默认、文档/配置示例、依赖边界 |
 | `test/fp-interface-test.mjs` | 12 | 对外契约：HTTP apiVersion / config.json v1 白名单 / 外部告警输入 / 单向依赖 / 文档与版本同步 |
+| `test/fp-confidence-fresh-test.mjs` | 3 | **同层可信度按当前观测重算**：缓存命中不沿用旧结论、慢探测不覆盖点击结果、会话端点变更后不冒充同源 |
+| `test/fp-client-retry-test.mjs` | 6 | **黄点判据与自动复检**：哪些结果该复检（high/网关/已拦截响应/错误不复检）、徽标绿点/警示色/A-B/告警/网关分支 |
 
-合计 **234 项**。没有凭据时「真实探测」那一段会打印 SKIP（其余照跑）。
+合计 **244 项**。没有凭据时「真实探测」那一段会打印 SKIP（其余照跑）。
 
 ### 真实宿主实测（2026-10-17 / 18，历史记录）
 
@@ -463,6 +502,20 @@ npm run test:render    # 只跑 jsdom + React 18 真挂载回归
       下游主动监测工具可直接只读消费。
 * [x] 浏览器视觉验证：刷新后徽标正常显示检查点名、悬浮卡渲染正常；模拟 warn 告警时
       `⚠` + 警示色 + 「行为告警」行显示正常（验证后已恢复真实 `ok` 状态）。
+
+### 0.3.3 修复验证（2026-11-11）
+
+* [x] `npm test` 全绿（244 项）；新增两条回归：`fp-confidence-fresh-test`（3 项）、`fp-client-retry-test`（6 项）。
+* [x] **缓存命中不再返回旧可信度**：探测发生在「本会话真实请求被拦截」之前（`confidence: low`、
+      `endpoint.source: config`）时，观测到位后命中 60s 缓存的取数会重算为 `high` / `observed`，
+      而不是继续返回 `observed + low` 的矛盾快照。
+* [x] **慢探测不覆盖新结果**：在观测建立前启动的慢探测晚一步落地时，不能把点击强制刷新拿到的
+      新结果写回旧值（缓存写入按探测开始时刻排序）。
+* [x] **并发探测去重不被误删**：`force` 探测与普通取数共用 inflight 键时，只清理自己登记的探测。
+* [x] **客户端自动复检有界**：警示色期间 5s/10s/20s/40s/60s 各取一次，转 `high` 即停；点击强制
+      刷新会重置计数；5 次用尽后回到 10 分钟主轮询，不会持续探测。
+* [x] **真实宿主观察**：同层可信度为 `high` 时徽标圆点为绿色（检查点名）；非 `high` 时圆点为
+      警示色并在悬浮卡说明原因（无观测 / 配置回退 / 同 host），观测到位后无需手动点击即可转绿。
 
 ## 相关仓库
 

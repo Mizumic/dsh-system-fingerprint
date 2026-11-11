@@ -49,7 +49,9 @@ GET /api/system-fingerprint/state?sessionId=<id>&provider=<id>&model=<id>&refres
 | `alert` | object? \| null | **可选外部行为告警**（display-only，见 §4）；未配置/无文件/损坏时为 `null` |
 
 **错误码**：`missing-credential` / `unauthorized` / `rate-limited` / `server` / `timeout` /
-`network` / `invalid-response` / `missing-field` / `bad-request` / `http-client` / `internal`。
+`network` / `invalid-response` / `missing-field` / `bad-request` / `http-client` /
+`endpoint-unavailable`（0.3.3 新增：探测路径 404/405/501，会继续尝试下一个候选路径） /
+`internal`。
 
 **`value` 的三种形态**（用 `displayKind` / `supported` 区分）：
 
@@ -67,6 +69,8 @@ GET /api/system-fingerprint/state?sessionId=<id>&provider=<id>&model=<id>&refres
 | `probedAt` / `ageMs` | number | 该指纹的采集时间与年龄 |
 | `traceId` | string? | 请求级 trace（官方 `x-ds-trace-id`，网关 `x-opencode-log-id`） |
 | `stable` / `checks` | boolean?/number? | 稳定性校验结果（`stabilityChecks>1` 时） |
+| `abTest` | boolean | **新增（0.3.3）**：一次探测的多轮采样里出现 ≥2 个 `system_fingerprint`（上游逐请求 A/B 灰度）时为 `true` |
+| `fingerprintVariants` | `[{fingerprint, count, name, plaintext}] \| null` | **新增（0.3.3）**：逐指纹计数，主指纹排第一、按次数降序；非 A/B 时为 `null` |
 | `cached` / `stale` / `staleReason` | boolean/string? | 缓存命中、失败时回退旧值 |
 | `endpoint` | object? | `{baseURL, host, source: observed\|observed-origin\|config\|env-default, conversationHost, sessionHeaderForwarded, attempts}` |
 | `confidence` | `'high' \| 'medium' \| 'low'` | 探测与对话同层可信度 |
@@ -74,6 +78,10 @@ GET /api/system-fingerprint/state?sessionId=<id>&provider=<id>&model=<id>&refres
 | `capture` | object | 见「capture 子对象」 |
 | `tableSize` | number | 映射表行数 |
 | `note` | string | 语义说明 |
+
+> **`confidence` / `endpoint.source` 的口径（0.3.3 明确）**：它们是**本次取数时**的判断，不是探测开始时的旧结论。
+> 宿主在组装每次响应时按当前会话观测重算——因此缓存命中、并发探测、真实请求晚到都不会留下
+> 「端点已同源、可信度还是 low」这类矛盾快照；同一会话不同时刻取数，`confidence` 允许从 `low/medium` 升到 `high`。
 
 2. 网关溯源（上游不返回 `system_fingerprint`）：
 
@@ -152,7 +160,7 @@ GET /api/system-fingerprint/state?sessionId=<id>&provider=<id>&model=<id>&refres
 | `capture` | object | `{enabled, rawEnabled, headersEnabled, hosts}` |
 | `gateway` | object | `{enabled, hosts, sessionHeader, headers:[{key, header}]}` |
 | `checkpoints` | `[{name, fingerprint}]` | 映射表（**不含 plaintext**） |
-| `checkpoint` | object? | 最近一次成功探测：`{fingerprint, name, source, provider, model, probedAt, endpointHost, confidence}`；没有则 `null` |
+| `checkpoint` | object? | 最近一次成功探测：`{fingerprint, name, source, provider, model, probedAt, endpointHost, confidence, samples, variants}`（`samples` = 本轮采样次数；`variants` = A/B 灰度时的逐指纹计数数组，非 A/B 为 `null`；两者 0.3.3 新增）；没有则 `null` |
 
 **禁止项**：任何凭据值、prompt、响应正文、绝对 DSH_HOME 路径都不允许出现在此文件里
 （有接口测试断言）。
@@ -193,6 +201,9 @@ GET /api/system-fingerprint/state?sessionId=<id>&provider=<id>&model=<id>&refres
 
 * 契约版本是整数：`apiVersion`（HTTP）与文件/输入的 `version`（`endpoints.json` / `config.json` / 外部告警文件）。
 * **允许**：加字段、加枚举值（消费者必须容忍未知字段）。
+* **v1 内的纯增量变更（消费者无需改代码）**：0.3.1 增加 `gateway.endpointDisclosed`、`gateway.routeHint(s)`；
+  0.3.2 增加 `endpoints.json` 的 `routeHints`；0.3.3 增加 `abTest` / `fingerprintVariants`、
+  `config.json` 的 `checkpoint.samples` / `checkpoint.variants` 与错误码 `endpoint-unavailable`。
 * **需要 bump**：删/改字段、改字段语义、改错误码含义、改文件路径。
 * **需要同步**：`docs/INTERFACE.md`、README、契约测试（`test/fp-interface-test.mjs`）、
   driftmon 侧消费代码；bump 记录写进 [`ROADMAP.md`](../ROADMAP.md)。
